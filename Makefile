@@ -1,5 +1,5 @@
 all:
-	g++ -o DistanceVector -std=c++11 -Wall DistanceVector.cpp
+	gcc -o DistanceVector DistanceVector.c
 
 clean:
 	rm DistanceVector
