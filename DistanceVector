@@ -4,15 +4,10 @@
 #include <limits.h>
 #include <stdbool.h>
 
-// Constants
 #define MAX_ROUTERS 26          // Maximum number of routers
 #define MAX_NAME_LEN 10         // Maximum length of router name
 #define INF INT_MAX             // Represents infinity
 
-/*
- * Router structure - represents a single router in the network
- * Contains all information needed for DV algorithm execution
- */
 typedef struct {
     char name[MAX_NAME_LEN];                    // Router identifier (e.g., "X", "Y", "Z")
     
