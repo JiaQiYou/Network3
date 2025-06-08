@@ -1,19 +1,5 @@
-# Makefile for Distance Vector routing algorithm
-CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -g
-TARGET = DistanceVector
-SOURCE = DistanceVector.c
+all:
+	g++ -o DistanceVector -std=c++11 -Wall DistanceVector.cpp
 
-# Default target
-all: $(TARGET)
-
-# Build the executable
-$(TARGET): $(SOURCE)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SOURCE)
-
-# Clean up compiled files
 clean:
-	rm -f $(TARGET)
-
-# Phony targets
-.PHONY: all clean
+	rm DistanceVector
