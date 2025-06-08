@@ -530,4 +530,175 @@ int main(int argc, char* argv[]) {
     //Phase 7: Print final routing tables
     for (int i = 0; i < router_count; i++) {
         print_routing_table(i);
-        printf
+        printf("\n");
+    }
+    /*
+     * Phase 8: Process topology updates (if any)
+     * This section handles the UPDATE phase of the input
+     */
+    if (update_count > 0) {
+        // Save current distance vectors before applying updates
+        // This is needed for proper propagation after topology changes
+        int last_dvs[MAX_ROUTERS][MAX_ROUTERS];
+        for (int i = 0; i < router_count; i++) {
+            get_distance_vector(i, last_dvs[i]);
+        }
+        
+        /*
+         * Apply all topology updates
+         * Process each update in the updates array
+         */
+        for (int u = 0; u < update_count; u++) {
+            int r1_idx = find_router_index(updates[u].router1);
+            int r2_idx = find_router_index(updates[u].router2);
+            int cost = updates[u].cost;
+            
+            /*
+             * Handle link removal (cost = -1)
+             * Remove bidirectional link between r1 and r2
+             */
+            if (cost == -1) {
+                // Remove r2 from r1's neighbor list
+                for (int n = 0; n < routers[r1_idx].neighbor_count; n++) {
+                    if (routers[r1_idx].neighbors[n] == r2_idx) {
+                        // Shift remaining neighbors left to fill the gap
+                        for (int j = n; j < routers[r1_idx].neighbor_count - 1; j++) {
+                            routers[r1_idx].neighbors[j] = routers[r1_idx].neighbors[j + 1];
+                            routers[r1_idx].neighbor_costs[j] = routers[r1_idx].neighbor_costs[j + 1];
+                        }
+                        routers[r1_idx].neighbor_count--;
+                        break;
+                    }
+                }
+                
+                // Remove r1 from r2's neighbor list (bidirectional)
+                for (int n = 0; n < routers[r2_idx].neighbor_count; n++) {
+                    if (routers[r2_idx].neighbors[n] == r1_idx) {
+                        // Shift remaining neighbors left to fill the gap
+                        for (int j = n; j < routers[r2_idx].neighbor_count - 1; j++) {
+                            routers[r2_idx].neighbors[j] = routers[r2_idx].neighbors[j + 1];
+                            routers[r2_idx].neighbor_costs[j] = routers[r2_idx].neighbor_costs[j + 1];
+                        }
+                        routers[r2_idx].neighbor_count--;
+                        break;
+                    }
+                }
+                
+                // Set distance table entries to infinity (no direct path)
+                for (int dest = 0; dest < router_count; dest++) {
+                    routers[r1_idx].distance_table[dest][r2_idx] = INF;
+                    routers[r2_idx].distance_table[dest][r1_idx] = INF;
+                }
+            } 
+            /*
+             * Handle link addition/update (cost >= 0)
+             * Add or update bidirectional link between r1 and r2
+             */
+            else {
+                bool found_r1_to_r2 = false, found_r2_to_r1 = false;
+                
+                // Update r1 -> r2 link cost (or add if new)
+                for (int n = 0; n < routers[r1_idx].neighbor_count; n++) {
+                    if (routers[r1_idx].neighbors[n] == r2_idx) {
+                        routers[r1_idx].neighbor_costs[n] = cost;
+                        found_r1_to_r2 = true;
+                        break;
+                    }
+                }
+                // Add new neighbor if not found
+                if (!found_r1_to_r2) {
+                    routers[r1_idx].neighbors[routers[r1_idx].neighbor_count] = r2_idx;
+                    routers[r1_idx].neighbor_costs[routers[r1_idx].neighbor_count] = cost;
+                    routers[r1_idx].neighbor_count++;
+                }
+                
+                // Update r2 -> r1 link cost (bidirectional)
+                for (int n = 0; n < routers[r2_idx].neighbor_count; n++) {
+                    if (routers[r2_idx].neighbors[n] == r1_idx) {
+                        routers[r2_idx].neighbor_costs[n] = cost;
+                        found_r2_to_r1 = true;
+                        break;
+                    }
+                }
+                // Add new neighbor if not found
+                if (!found_r2_to_r1) {
+                    routers[r2_idx].neighbors[routers[r2_idx].neighbor_count] = r1_idx;
+                    routers[r2_idx].neighbor_costs[routers[r2_idx].neighbor_count] = cost;
+                    routers[r2_idx].neighbor_count++;
+                }
+                
+                // Update distance table entries for direct paths
+                routers[r1_idx].distance_table[r2_idx][r2_idx] = cost;
+                routers[r2_idx].distance_table[r1_idx][r1_idx] = cost;
+            }
+        }
+        
+        /*
+         * Propagate the topology changes
+         * Use the saved distance vectors to update all routers
+         */
+        for (int i = 0; i < router_count; i++) {
+            for (int n = 0; n < routers[i].neighbor_count; n++) {
+                int neighbor_idx = routers[i].neighbors[n];
+                update_distance_table(i, neighbor_idx, last_dvs[neighbor_idx]);
+            }
+        }
+        
+        // Recompute routing tables after topology changes
+        for (int i = 0; i < router_count; i++) {
+            compute_routing_table(i);
+        }
+        
+        // Print distance tables after initial update propagation
+        step++;
+        for (int i = 0; i < router_count; i++) {
+            print_distance_table(i, step);
+        }
+        
+        /*
+         * Run DV algorithm to convergence after topology update
+         * Continue until no more changes occur
+         */
+        while (true) {
+            // Get current distance vectors from all routers
+            int dvs[MAX_ROUTERS][MAX_ROUTERS];
+            for (int i = 0; i < router_count; i++) {
+                get_distance_vector(i, dvs[i]);
+            }
+            
+            // Exchange distance vectors and check for changes
+            bool changed = false;
+            for (int i = 0; i < router_count; i++) {
+                for (int n = 0; n < routers[i].neighbor_count; n++) {
+                    int neighbor_idx = routers[i].neighbors[n];
+                    if (update_distance_table(i, neighbor_idx, dvs[neighbor_idx])) {
+                        changed = true;
+                    }
+                }
+            }
+            
+            // If no changes occurred, algorithm has converged
+            if (!changed) break;
+            
+            // Print distance tables for this iteration
+            step++;
+            for (int i = 0; i < router_count; i++) {
+                compute_routing_table(i);
+            }
+            for (int i = 0; i < router_count; i++) {
+                print_distance_table(i, step);
+            }
+        }
+        
+        /*
+         * Phase 9: Print final routing tables after convergence
+         * Output the final routing tables for all routers
+         */
+        for (int i = 0; i < router_count; i++) {
+            print_routing_table(i);
+            printf("\n");  // Blank line separator between routing tables
+        }
+    }
+    
+    return 0;  // Program completed successfully
+}
