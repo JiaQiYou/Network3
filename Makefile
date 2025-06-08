@@ -2,7 +2,7 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c99 -g
 TARGET = DistanceVector
-SOURCE = DistanceVector
+SOURCE = DistanceVector.c
 
 # Default target
 all: $(TARGET)
