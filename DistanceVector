@@ -9,14 +9,10 @@
 #define INF INT_MAX             // Represents infinity
 
 typedef struct {
-    char name[MAX_NAME_LEN];                    // Router identifier (e.g., "X", "Y", "Z")
-    
+    char name[MAX_NAME_LEN];
     int neighbors[MAX_ROUTERS];                 // Array of neighbor router indices
-    
     int neighbor_costs[MAX_ROUTERS];            // Direct link costs to each neighbor
-    
     int neighbor_count;                         // Number of direct neighbors
-    
     // Distance table: distance_table[dest][via] = cost to reach dest via via
     int distance_table[MAX_ROUTERS][MAX_ROUTERS];
     
